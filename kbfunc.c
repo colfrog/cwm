@@ -594,54 +594,6 @@ kbfunc_exec_lock(void *ctx, union arg *arg, enum xev xev)
 }
 
 void
-kbfunc_menu_client_label(void *ctx, union arg *arg, enum xev xev)
-{
-        struct client_ctx       *cc = ctx;
-        struct menu             *mi;
-        struct menu_q            menuq;
-
-        TAILQ_INIT(&menuq);
-
-        /* dummy is set, so this will always return */
-        mi = menu_filter(cc->sc, &menuq, "label", cc->label, (CWM_MENU_DUMMY),
-            search_match_text, search_print_text);
-
-        if (!mi->abort) {
-                free(cc->label);
-                cc->label = xstrdup(mi->text);
-        }
-        free(mi);
-}
-
-void
-kbfunc_exec_cmd(void *ctx, union arg *arg, enum xev xev)
-{
-        u_spawn(arg->c);
-}
-
-void
-kbfunc_exec_term(void *ctx, union arg *arg, enum xev xev)
-{
-        struct cmd_ctx  *cmd;
-
-        TAILQ_FOREACH(cmd, &Conf.cmdq, entry) {
-                if (strcmp(cmd->name, "term") == 0)
-                        u_spawn(cmd->path);
-        }
-}
-
-void
-kbfunc_exec_lock(void *ctx, union arg *arg, enum xev xev)
-{
-        struct cmd_ctx  *cmd;
-
-        TAILQ_FOREACH(cmd, &Conf.cmdq, entry) {
-                if (strcmp(cmd->name, "lock") == 0)
-                        u_spawn(cmd->path);
-        }
-}
-
-void
 kbfunc_client_move_edge(void *ctx, union arg *arg, enum xev xev)
 {
         struct client_ctx       *cc = ctx;
