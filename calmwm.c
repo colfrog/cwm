@@ -108,6 +108,7 @@ main(int argc, char **argv)
 		warnx("config file %s has errors", conf_path);
 	free(conf_path);
 
+	system("sh ~/.config/cwm/autoexec");
 	x_init(display_name);
 	cwm_status = CWM_RUNNING;
 
