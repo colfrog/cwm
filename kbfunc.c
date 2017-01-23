@@ -592,3 +592,130 @@ kbfunc_exec_lock(void *ctx, union arg *arg, enum xev xev)
 			u_spawn(cmd->path);
 	}
 }
+
+void
+kbfunc_menu_client_label(void *ctx, union arg *arg, enum xev xev)
+{
+        struct client_ctx       *cc = ctx;
+        struct menu             *mi;
+        struct menu_q            menuq;
+
+        TAILQ_INIT(&menuq);
+
+        /* dummy is set, so this will always return */
+        mi = menu_filter(cc->sc, &menuq, "label", cc->label, (CWM_MENU_DUMMY),
+            search_match_text, search_print_text);
+
+        if (!mi->abort) {
+                free(cc->label);
+                cc->label = xstrdup(mi->text);
+        }
+        free(mi);
+}
+
+void
+kbfunc_exec_cmd(void *ctx, union arg *arg, enum xev xev)
+{
+        u_spawn(arg->c);
+}
+
+void
+kbfunc_exec_term(void *ctx, union arg *arg, enum xev xev)
+{
+        struct cmd_ctx  *cmd;
+
+        TAILQ_FOREACH(cmd, &Conf.cmdq, entry) {
+                if (strcmp(cmd->name, "term") == 0)
+                        u_spawn(cmd->path);
+        }
+}
+
+void
+kbfunc_exec_lock(void *ctx, union arg *arg, enum xev xev)
+{
+        struct cmd_ctx  *cmd;
+
+        TAILQ_FOREACH(cmd, &Conf.cmdq, entry) {
+                if (strcmp(cmd->name, "lock") == 0)
+                        u_spawn(cmd->path);
+        }
+}
+
+void
+kbfunc_client_move_edge(void *ctx, union arg *arg, enum xev xev)
+{
+        struct client_ctx       *cc = ctx;
+        struct screen_ctx       *sc = cc->sc;
+        struct geom       area;
+        int               flags;
+
+         /*
+          * pick screen that the middle of the window is on.
+          * that's probably more fair than if just the origin of
+          * a window is poking over a boundary
+          */
+         area = screen_area(sc,
+        cc->geom.x + cc->geom.w / 2,
+        cc->geom.y + cc->geom.h / 2, CWM_GAP);
+
+         flags = arg->i;
+
+         switch (flags) {
+         case CWM_TOP_LEFT:
+                 cc->geom.x = area.x;
+                 cc->geom.y = area.y;
+                 client_move(cc);
+                 client_ptrwarp(cc);
+                 break;
+         case CWM_BOTTOM_LEFT:
+                 cc->geom.x = area.x;
+                 cc->geom.y = area.y + area.h - cc->geom.h - cc->bwidth * 2;
+                 client_move(cc);
+                 client_ptrwarp(cc);
+                 break;
+         case CWM_TOP_RIGHT:
+                 cc->geom.x = area.x + area.w - cc->geom.w - cc->bwidth * 2;
+                 cc->geom.y = area.y;
+                 client_move(cc);
+                 client_ptrwarp(cc);
+                 break;
+         case CWM_BOTTOM_RIGHT:
+                 cc->geom.x = area.x + area.w - cc->geom.w - cc->bwidth * 2;
+                 cc->geom.y = area.y + area.h - cc->geom.h - cc->bwidth * 2;
+                 client_move(cc);
+                 client_ptrwarp(cc);
+                 break;
+         case CWM_CENTER:
+                 cc->geom.x = area.x + (area.w) / 2 - (cc->geom.w / 2) - cc->bwidth;
+                 cc->geom.y = area.y + (area.h) / 2 - (cc->geom.h / 2) - cc->bwidth;
+                 client_move(cc);
+                 client_ptrwarp(cc);
+                 break;
+         case CWM_TOP_CENTER:
+                 cc->geom.x = area.x + (area.w) / 2 - (cc->geom.w / 2) - cc->bwidth;
+                 cc->geom.y = area.y;
+                 client_move(cc);
+                 client_ptrwarp(cc);
+                 break;
+         case CWM_BOTTOM_CENTER:
+                 cc->geom.x = area.x + (area.w) / 2 - (cc->geom.w / 2) - cc->bwidth;
+                 cc->geom.y = area.y + area.h - cc->geom.h - cc->bwidth * 2;
+                 client_move(cc);
+                 client_ptrwarp(cc);
+                 break;
+         case CWM_RIGHT_CENTER:
+                 cc->geom.x = area.x + area.w - cc->geom.w - cc->bwidth * 2;
+                 cc->geom.y = area.y + (area.h) / 2 - (cc->geom.h / 2) - cc->bwidth;
+                 client_move(cc);
+                 client_ptrwarp(cc);
+                 break;
+         case CWM_LEFT_CENTER:
+                 cc->geom.x = area.x;
+                 cc->geom.y = area.y + (area.h) / 2 - (cc->geom.h / 2) - cc->bwidth;
+                 client_move(cc);
+                 client_ptrwarp(cc);
+                 break;
+         default:
+                 warnx("invalid flags passed to kbfunc_client_move_edge");
+         }
+}

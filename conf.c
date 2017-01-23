@@ -185,6 +185,25 @@ static const struct {
 	{ "restart", kbfunc_cwm_status, CWM_CONTEXT_SC, {.i = CWM_EXEC_WM} },
 	{ "quit", kbfunc_cwm_status, CWM_CONTEXT_SC, {.i = CWM_QUIT} },
 
+        { "movetopleft", kbfunc_client_move_edge, CWM_CONTEXT_CC,
+            {.i = (CWM_TOP_LEFT)} },
+        { "movebottomleft", kbfunc_client_move_edge, CWM_CONTEXT_CC,
+            {.i = (CWM_BOTTOM_LEFT)} },
+        { "movetopright", kbfunc_client_move_edge, CWM_CONTEXT_CC,
+            {.i = (CWM_TOP_RIGHT)} },
+        { "movebottomright", kbfunc_client_move_edge, CWM_CONTEXT_CC,
+            {.i = (CWM_BOTTOM_RIGHT)} },
+        { "movecenter", kbfunc_client_move_edge, CWM_CONTEXT_CC,
+            {.i = (CWM_CENTER)} },
+        { "movetopcenter", kbfunc_client_move_edge, CWM_CONTEXT_CC,
+            {.i = (CWM_TOP_CENTER)} },
+        { "movebottomcenter", kbfunc_client_move_edge, CWM_CONTEXT_CC,
+            {.i = (CWM_BOTTOM_CENTER)} },
+        { "moverightcenter", kbfunc_client_move_edge, CWM_CONTEXT_CC,
+            {.i = (CWM_RIGHT_CENTER)} },
+        { "moveleftcenter", kbfunc_client_move_edge, CWM_CONTEXT_CC,
+            {.i = (CWM_LEFT_CENTER)} },
+
 };
 static unsigned int ignore_mods[] = {
 	0, LockMask, Mod2Mask, Mod2Mask | LockMask
@@ -254,6 +273,15 @@ static const struct {
 	{ "CMS-j",	"window-resize-down-big" },
 	{ "CMS-k",	"window-resize-up-big" },
 	{ "CMS-l",	"window-resize-right-big" },
+        { "CS-y",       "movetopleft" },
+        { "CS-b",       "movebottomleft" },
+        { "CS-u",       "movetopright" },
+        { "CS-n",       "movebottomright" },
+        { "CS-g",       "movecenter" },
+        { "CS-k",       "movetopcenter" },
+        { "CS-j",       "movebottomcenter" },
+        { "CS-l",       "moverightcenter" },
+        { "CS-h",       "moveleftcenter" },
 },
 mouse_binds[] = {
 	{ "1",		"menu-window" },
