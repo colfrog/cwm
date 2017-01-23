@@ -61,7 +61,7 @@ size_t strlcpy(char *, const char *, size_t);
 #define nitems(_a) (sizeof((_a)) / sizeof((_a)[0]))
 #endif
 
-#define	CONFFILE	".cwmrc"
+#define	CONFFILE	"~/.config/cwm/cwmrc"
 
 #define BUTTONMASK	(ButtonPressMask | ButtonReleaseMask)
 #define MOUSEMASK	(BUTTONMASK | PointerMotionMask)
