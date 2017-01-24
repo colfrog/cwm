@@ -1,10 +1,15 @@
-This is a port of OpenBSD's excellent cwm[0] to Linux and other
+This is a fork of a port of OpenBSD's excellent cwm[0] to Linux and other
 Unices.
 
     cwm is a window manager for X11 which contains many features that
     concentrate on the efficiency and transparency of window
     management.  cwm also aims to maintain the simplest and most
     pleasant aesthetic.
+    
+This fork moves the config file to ~/.config/cwm/cwmrc and also adds an autoexec
+file in the same directory that will be executed as the window manager starts.
+It also adds the changes from https://github.com/TaylanTatli/cwm-mod
+As of this edit, this fork is ahead of the cwm-mod repository.
 
 This port requires pkg-config, Xft, Xinerama and Xrandr.  The included Makefile
 should work with both GNU make and BSD make.  It has been built successfully on
