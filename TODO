@@ -1,0 +1,15 @@
+next screen
+previous screen
+Grow keeping aspect.
+Shrink keeping aspect.
+move to the left/right/bottom/top while maxvert/maxhor and half max horizontal/v
+ertical                                  
+move window to next monitor/screen.
+move window to previous monitor.
+half the screen and centered
+
+# unimportant
+Go to next/previous group
+move to next/previous  group
+Make a window unkillable (toggles).
+Make a window stay on top. #pointless for cwm
