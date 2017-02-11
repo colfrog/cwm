@@ -38,8 +38,10 @@ Specify an alternative configuration file.
 By default,
 .Nm
 loads
-.Pa ~/.cwmrc ,
-if present.
+.Pa ~/.config/cwm/cwmrc
+and executes commands from
+.Pa ~/.config/cwm/autoexec ,
+if they are present.
 Any error messages from lines in the configuration file will be sent to
 .Em stderr ;
 however,
@@ -244,7 +246,7 @@ Show list of currently defined groups.
 Selecting an item will hide/unhide that group.
 .It Ic M3
 Show list of applications as defined in
-.Pa ~/.cwmrc .
+.Pa ~/.config/cwm/cwmrc .
 Selecting an item will spawn that application.
 .El
 .Sh ENVIRONMENT
