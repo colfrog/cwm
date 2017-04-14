@@ -22,6 +22,9 @@
 %{
 
 #include <sys/types.h>
+#ifdef __GLIBC__
+#include <sys/queue.h>
+#endif
 
 #include <ctype.h>
 #include <err.h>
