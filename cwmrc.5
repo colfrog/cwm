@@ -333,7 +333,7 @@ vertically, other windows in its group share remaining screen space.
 Move current window.
 .It window-resize
 Resize current window.
-.It window-resize-keepaspect
+.It window-resize-keepratio
 Resize current window, keeping the aspect ration intact.
 .It window-move-up
 Move window
@@ -367,6 +367,14 @@ pixels right.
 Move window 10 times
 .Ar moveamount
 pixels left.
+.It window-grow
+Grow window
+.Ar moveamount
+pixels (on each side), keeping aspect ratio.
+.It window-shrink
+Shrink window
+.Ar moveamount
+pixels (on each side), keeping aspect ratio.
 .It window-resize-up
 Resize window
 .Ar moveamount
@@ -383,6 +391,14 @@ pixels right.
 Resize window
 .Ar moveamount
 pixels left.
+.It window-grow-big
+Resize window 10 times
+.Ar moveamount
+pixels (on each side), keeping aspect ratio.
+.It window-shrink-big
+Resize window 10 times
+.Ar moveamount
+pixels (on each side), keeping aspect ratio.
 .It window-resize-up-big
 Resize window 10 times
 .Ar moveamount

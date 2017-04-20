@@ -39,7 +39,6 @@ mousefunc_client_resize(void *ctx, union arg *arg, enum xev xev)
 	XEvent			 ev;
 	Time			 ltime = 0;
 	struct screen_ctx	*sc = cc->sc;
-	int keepAR = arg->i;
 
 	if (cc->flags & CLIENT_FREEZE)
 		return;
@@ -66,7 +65,7 @@ mousefunc_client_resize(void *ctx, union arg *arg, enum xev xev)
 				continue;
 			ltime = ev.xmotion.time;
 
-			if (keepAR) {
+			if (arg->i & CWM_KEEPAR) {
 				double 
 					ratiox = (double) ev.xmotion.x/cc->geom.w,
 					ratioy = (double) ev.xmotion.y/cc->geom.h,
