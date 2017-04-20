@@ -110,6 +110,8 @@ static const struct {
 	{ "window-move-left-big", kbfunc_client_move, CWM_CONTEXT_CC,
 	    {.i = (CWM_LEFT | CWM_BIGAMOUNT)} },
 	{ "window-resize", mousefunc_client_resize, CWM_CONTEXT_CC, {0} },
+	{ "window-resize-keepaspect", mousefunc_client_resize, CWM_CONTEXT_CC,
+	    {.i = 1} },
 	{ "window-resize-up", kbfunc_client_resize, CWM_CONTEXT_CC,
 	    {.i = (CWM_UP)} },
 	{ "window-resize-down", kbfunc_client_resize, CWM_CONTEXT_CC,
@@ -289,8 +291,9 @@ mouse_binds[] = {
 	{ "3",		"menu-cmd" },
 	{ "M-1",	"window-move" },
 	{ "CM-1",	"window-group" },
-	{ "M-2",	"window-resize" },
-	{ "M-3",	"window-lower" },
+	{ "M-2",	"window-lower" },
+	{ "M-3",	"window-resize" },
+	{ "MS-3",	"window-resize-keepaspect" },
 	{ "CMS-3",	"window-hide" },
 };
 

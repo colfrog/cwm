@@ -1,0 +1,8 @@
+[Desktop Entry]
+Encoding=UTF-8
+Type=XSession
+Exec=BINDIR
+TryExec=BINDIR
+DesktopNames=cwm
+Name=cwm
+Comment=Calm Window Manager

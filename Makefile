@@ -18,14 +18,16 @@ CPPFLAGS+=	`pkg-config --cflags fontconfig x11 xft xrandr`
 
 CFLAGS?=	-Wall -O2 -g -D_GNU_SOURCE
 
-LDFLAGS+=	`pkg-config --libs fontconfig x11 xft xrandr`
+LDFLAGS+=	`pkg-config --libs fontconfig x11 xft xrandr` -lm
 
 MANPREFIX?=	${PREFIX}/share/man
+
+BINDIR=		${DESTDIR}${PREFIX}/bin
 
 all: ${PROG}
 
 clean:
-	rm -f ${OBJS} ${PROG} y.tab.c
+	rm -f ${OBJS} ${PROG} y.tab.c cwm.desktop
 
 y.tab.c: parse.y
 	yacc parse.y
@@ -37,10 +39,12 @@ ${PROG}: ${OBJS} y.tab.o
 	${CC} -c ${CFLAGS} ${CPPFLAGS} $<
 
 install: ${PROG}
-	install -d ${DESTDIR}${PREFIX}/bin ${DESTDIR}${MANPREFIX}/man1 ${DESTDIR}${MANPREFIX}/man5
-	install -m 755 cwm ${DESTDIR}${PREFIX}/bin
+	#install -d ${BINDIR} ${DESTDIR}/usr/share/xsessions ${DESTDIR}${MANPREFIX}/man1 ${DESTDIR}${MANPREFIX}/man5
+	install -m 755 cwm ${BINDIR}
 	install -m 644 cwm.1 ${DESTDIR}${MANPREFIX}/man1
 	install -m 644 cwmrc.5 ${DESTDIR}${MANPREFIX}/man5
+	sed -e ";s|BINDIR|${BINDIR}/cwm|g" <cwm.desktop.in >cwm.desktop
+	install -m 644 cwm.desktop ${DESTDIR}/usr/share/xsessions
 
 release:
 	VERSION=$$(git describe --tags | sed 's/^v//;s/-[^.]*$$//') && \

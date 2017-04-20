@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <math.h>
 
 #include "calmwm.h"
 
@@ -39,6 +40,7 @@ mousefunc_client_resize(void *ctx, union arg *arg, enum xev xev)
 	XEvent			 ev;
 	Time			 ltime = 0;
 	struct screen_ctx	*sc = cc->sc;
+	int keepAR = arg->i;
 
 	if (cc->flags & CLIENT_FREEZE)
 		return;
@@ -55,7 +57,7 @@ mousefunc_client_resize(void *ctx, union arg *arg, enum xev xev)
 
 	menu_windraw(sc, cc->win, "%4d x %-4d", cc->dim.w, cc->dim.h);
 
-	for (;;) {
+	while (1) {
 		XWindowEvent(X_Dpy, cc->win, MOUSEMASK, &ev);
 
 		switch (ev.type) {
@@ -65,8 +67,20 @@ mousefunc_client_resize(void *ctx, union arg *arg, enum xev xev)
 				continue;
 			ltime = ev.xmotion.time;
 
-			cc->geom.w = ev.xmotion.x;
-			cc->geom.h = ev.xmotion.y;
+			if (keepAR) {
+				double 
+					ratiox = (double) ev.xmotion.x/cc->geom.w,
+					ratioy = (double) ev.xmotion.y/cc->geom.h,
+					ratio = (ratiox < ratioy) ?
+						ratiox:
+						ratioy;
+				cc->geom.w *= ratio;
+				cc->geom.h *= ratio;
+			} else {
+				cc->geom.w = ev.xmotion.x;
+				cc->geom.h = ev.xmotion.y;
+			}
+
 			client_applysizehints(cc);
 			client_resize(cc, 1);
 			menu_windraw(sc, cc->win,
