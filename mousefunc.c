@@ -66,6 +66,7 @@ mousefunc_client_resize(void *ctx, union arg *arg, enum xev xev)
 			ltime = ev.xmotion.time;
 
 			if (arg->i & CWM_KEEPAR) {
+				//TODO: limit cursor to the window corner's path
 				double 
 					ratiox = (double) ev.xmotion.x/cc->geom.w,
 					ratioy = (double) ev.xmotion.y/cc->geom.h,

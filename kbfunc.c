@@ -49,9 +49,6 @@ kbfunc_cwm_status(void *ctx, union arg *arg, enum xev xev)
 static void
 kbfunc_amount(int flags, int amt, unsigned int *mx, unsigned int *my)
 {
-#define CWM_FACTOR 10
-#define CWM_FACTOR_KEEPAR 5
-
 	if (flags & CWM_BIGAMOUNT)
 		amt *= (flags & CWM_GROW || flags & CWM_SHRINK) ?
 			CWM_FACTOR_KEEPAR;

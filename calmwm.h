@@ -24,6 +24,7 @@
 #include <sys/param.h>
 #include <stdio.h>
 #include "queue.h"
+#include "config.h"
 
 /* prototypes for portable-included functions */
 char *fgetln(FILE *, size_t *);
@@ -60,8 +61,6 @@ size_t strlcpy(char *, const char *, size_t);
 #ifndef nitems
 #define nitems(_a) (sizeof((_a)) / sizeof((_a)[0]))
 #endif
-
-#define	CONFFILE	".config/cwm/cwmrc"
 
 #define BUTTONMASK	(ButtonPressMask | ButtonReleaseMask)
 #define MOUSEMASK	(BUTTONMASK | PointerMotionMask)

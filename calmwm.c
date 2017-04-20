@@ -111,9 +111,13 @@ main(int argc, char **argv)
 	x_init(display_name);
 	cwm_status = CWM_RUNNING;
 
+#ifdef AUTOEXEC && SHBINDIR && AUTOEXECDIR
 	int ret;
-	if((ret = system("/bin/sh ~/.config/cwm/autoexec")) == 0)
+	char* autoexec_command;
+	asprintf(&autoexec_command, "%s %s", SHBINDIR, AUTOEXECDIR);
+	if((ret = system(autoexec_command)) == 0)
 		printf("Something went wrong executing the autoexec file.");
+#endif
 
 #ifdef __OpenBSD__
 	if (pledge("stdio rpath proc exec", NULL) == -1)
