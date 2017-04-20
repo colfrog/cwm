@@ -124,8 +124,12 @@ Move window by a small amount.
 .It Ic MS-[hjkl]
 Move window by a large amount; see
 .Xr cwmrc 5 .
+.It Ic CM-[ui]
+Grow/Shrink window by a small amount, keeping aspect ratio.
 .It Ic CM-[hjkl]
 Resize window by a small amount.
+.It Ic CMS-[ui]
+Grow/Shrink window by a large amount, keeping aspect ratio.
 .It Ic CMS-[hjkl]
 Resize window by a large amount; see
 .Xr cwmrc 5 .
@@ -178,7 +182,9 @@ Move current window.
 .It Ic CM-M1
 Toggle group membership of current window.
 .It Ic M-M2
-Resize current window
+Resize current window.
+.It Ic MS-M2
+Resize current window, keeping aspect ratio.
 .It Ic M-M3
 Lower current window.
 .It Ic CMS-M3

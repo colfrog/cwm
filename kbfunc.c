@@ -51,8 +51,11 @@ kbfunc_amount(int flags, int amt, unsigned int *mx, unsigned int *my)
 {
 #define CWM_FACTOR 10
 
-	if (flags & CWM_BIGAMOUNT)
-		amt *= CWM_FACTOR;
+	if (flags & CWM_BIGAMOUNT) {
+		amt *= (flags & CWM_SHRINK || flags & CWM_GROW) ?
+			CWM_FACTOR/2:
+			CWM_FACTOR;
+	}
 
 	switch (flags & DIRECTIONMASK) {
 	case CWM_UP:
@@ -67,6 +70,13 @@ kbfunc_amount(int flags, int amt, unsigned int *mx, unsigned int *my)
 	case CWM_LEFT:
 		*mx -= amt;
 		break;
+	case CWM_GROW:
+		*mx += amt;
+		*my += amt;
+		break;
+	case CWM_SHRINK:
+		*mx -= amt;
+		*my -= amt;
 	}
 }
 
@@ -140,9 +150,9 @@ kbfunc_client_move(void *ctx, union arg *arg, enum xev xev)
 void
 kbfunc_client_resize(void *ctx, union arg *arg, enum xev xev)
 {
-	struct client_ctx	*cc = ctx;
-	unsigned int		 mx = 0, my = 0;
-	int			 amt = 1;
+	struct client_ctx *cc = ctx;
+	unsigned int	  mx = 0, my = 0;
+	int		  amt = 1;
 
 	if (cc->flags & CLIENT_FREEZE)
 		return;

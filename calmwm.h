@@ -76,7 +76,11 @@ size_t strlcpy(char *, const char *, size_t);
 #define CWM_LEFT		0x0004
 #define CWM_RIGHT		0x0008
 #define CWM_BIGAMOUNT		0x0010
+#define CWM_GROW		0x0020
+#define CWM_SHRINK		0x0040
 #define DIRECTIONMASK	(CWM_UP | CWM_DOWN | CWM_LEFT | CWM_RIGHT)
+
+#define CWM_KEEPAR		0x0001
 
 #define CWM_TOP_LEFT            0x0001
 #define CWM_BOTTOM_LEFT         0x0002
