@@ -302,10 +302,10 @@ mouse_binds[] = {
 	{ "3",		"menu-cmd" },
 	{ "M-1",	"window-move" },
 	{ "CM-1",	"window-group" },
-	{ "M-3",	"window-resize" },
-	{ "MS-3",	"window-resize-keepratio" },
 	{ "M-2",	"window-lower" },
 	{ "CMS-2",	"window-hide" },
+	{ "M-3",	"window-resize" },
+	{ "MS-3",	"window-resize-keepratio" },
 };
 
 void
