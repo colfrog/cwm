@@ -51,11 +51,8 @@ kbfunc_amount(int flags, int amt, unsigned int *mx, unsigned int *my)
 {
 #define CWM_FACTOR 10
 
-	if (flags & CWM_BIGAMOUNT) {
-		amt *= (flags & CWM_SHRINK || flags & CWM_GROW) ?
-			CWM_FACTOR/2:
-			CWM_FACTOR;
-	}
+	if (flags & CWM_BIGAMOUNT)
+		amt *= CWM_FACTOR;
 
 	switch (flags & DIRECTIONMASK) {
 	case CWM_UP:
