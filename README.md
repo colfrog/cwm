@@ -29,7 +29,7 @@ This window manager requires the following packages and their development header
 
     * (lib)Xrandr
 
-    * (lib)Xinerama (only required for multi-monitor support, can probably work without
+    * (lib)Xinerama (only required for multi-monitor support, can probably work without)
 
     * BSD Make or GNU Make
 
