@@ -18,7 +18,7 @@ CPPFLAGS+=	`pkg-config --cflags fontconfig x11 xft xrandr`
 
 CFLAGS?=	-Wall -O2 -g -D_GNU_SOURCE
 
-LDFLAGS+=	`pkg-config --libs fontconfig x11 xft xrandr` -lm
+LDFLAGS+=	`pkg-config --libs fontconfig x11 xft xrandr`
 
 MANPREFIX?=	${PREFIX}/share/man
 
