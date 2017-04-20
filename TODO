@@ -1,9 +1,10 @@
+Move useful preprocessor calls to config.h
+
 next screen
 previous screen
 Grow keeping aspect.
 Shrink keeping aspect.
-move to the left/right/bottom/top while maxvert/maxhor and half max horizontal/v
-ertical                                  
+move to the left/right/bottom/top while maxvert/maxhor and half max horizontal/vertical
 move window to next monitor/screen.
 move window to previous monitor.
 half the screen and centered
