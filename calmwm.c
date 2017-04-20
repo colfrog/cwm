@@ -111,7 +111,7 @@ main(int argc, char **argv)
 	x_init(display_name);
 	cwm_status = CWM_RUNNING;
 
-#ifdef AUTOEXEC && SHBINDIR && AUTOEXECDIR
+#if defined AUTOEXEC// && defined SHBINDIR && defined AUTOEXECDIR
 	int ret;
 	char* autoexec_command;
 	asprintf(&autoexec_command, "%s %s", SHBINDIR, AUTOEXECDIR);

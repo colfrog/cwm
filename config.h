@@ -9,11 +9,11 @@
 //set this to the shell you would like to execute the autoexec file with.
 //Usually you want it to be /bin/sh.
 //AUTOEXEC depends on this value.
-#define SHBINPATH		"/bin/sh"
+#define SHBINDIR		"/bin/sh"
 
 //set this to the path to your autoexec file
 //AUTOEXEC depends on this value.
-#define AUTOEXECPATH		"~/.config/cwm/autoexec"
+#define AUTOEXECDIR		"~/.config/cwm/autoexec"
 
 //set this to specify the multiplier that the resize-big functions should resize with
 #define CWM_FACTOR		10
