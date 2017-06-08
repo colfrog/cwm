@@ -7,12 +7,11 @@ PREFIX?=	/usr/local
 
 SRCS=		calmwm.c screen.c xmalloc.c client.c menu.c \
 		search.c util.c xutil.c conf.c xevents.c group.c \
-		kbfunc.c mousefunc.c parse.y
+		kbfunc.c mousefunc.c openbsd-compat.c parse.y
 
 OBJS=		calmwm.o screen.o xmalloc.o client.o menu.o \
 		search.o util.o xutil.o conf.o xevents.o group.o \
-		kbfunc.o mousefunc.o strlcpy.o strlcat.o y.tab.o \
-		strtonum.o fgetln.o reallocarray.o
+		kbfunc.o mousefunc.o openbsd-compat.o y.tab.o
 
 CPPFLAGS+=	`pkg-config --cflags fontconfig x11 xft xrandr`
 
