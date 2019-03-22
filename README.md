@@ -1,4 +1,4 @@
-This is a fork of OpenBSD's cwm[0] to Linux and other Unices by Leah Neukirchen (https://github.com/chneukirchen).
+This is a fork of OpenBSD's cwm[0] to Linux and other Unices by Leah Neukirchen (https://github.com/leahneukirchen).
 I added some features and I'm trying to keep it updated.
 
     cwm is a window manager for X11 which contains many features that
