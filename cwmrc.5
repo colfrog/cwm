@@ -84,6 +84,8 @@ Meta key.
 Shift key.
 .It Ic 4
 Mod4 (windows) key.
+.It Ic 5
+Mod5 (AltGr) key.
 .El
 .Pp
 The
@@ -101,18 +103,10 @@ The modifier keys come first, followed by a
 .Sq - ,
 then the button number.
 .Pp
-The following modifiers are recognised:
-.Pp
-.Bl -tag -width Ds -offset indent -compact
-.It Ic C
-Control key.
-.It Ic M
-Meta key.
-.It Ic S
-Shift key.
-.It Ic 4
-Mod4 (windows) key.
-.El
+The same modifiers are recognised as for
+.Ar key
+in
+.Nm bind-key .
 .Pp
 The following buttons are recognised:
 .Pp
@@ -173,7 +167,7 @@ entry is shown in the application menu.
 When selected, the defined
 .Ar path
 is executed with
-.Xr execve 2 .
+.Xr execvp 3 .
 .Pp
 The
 .Ar name
@@ -245,7 +239,12 @@ A special
 keyword
 .Dq all
 can be used to unbind all buttons.
-.Pp
+.It Ic wm Ar name path
+Every
+.Ar name
+entry is shown in the wm menu.
+When selected, the window manager is replaced by
+.Ar path .
 .El
 .Sh BIND FUNCTION LIST
 .Bl -tag -width 23n -compact
@@ -283,6 +282,8 @@ menu.
 Toggle visibility of group n, where n is 1-9.
 .It group-only-[n]
 Show only group n, where n is 1-9, hiding other groups.
+.It group-close-[n]
+Close all windows in group n, where n is 1-9.
 .It group-toggle-all
 Toggle visibility of all groups.
 .It window-group
@@ -301,8 +302,8 @@ Reverse cycle through windows.
 Forward cycle through windows in current group.
 .It window-rcycle-ingroup
 Reverse cycle through windows in current group.
-.It window-delete
-Delete current window.
+.It window-close
+Close current window.
 .It window-hide
 Hide current window.
 .It window-lower
@@ -325,12 +326,12 @@ Vertically maximize current window (gap + border honored).
 Horizontally maximize current window (gap + border honored).
 .It window-htile
 Current window is placed at the top of the screen, maximized
-horizontally and resized to half of the vertical screen space. Other
-windows in its group share remaining screen space.
+horizontally and resized to half of the vertical screen space.
+Other windows in its group share remaining screen space.
 .It window-vtile
 Current window is placed on the left of the screen, maximized vertically
-and resized to half of the horizontal screen space. Other windows in its
-group share remaining screen space.
+and resized to half of the horizontal screen space.
+Other windows in its group share remaining screen space.
 .It window-move
 Move current window.
 .It window-resize
@@ -417,6 +418,22 @@ pixels right.
 Resize window 10 times
 .Ar moveamount
 pixels left.
+.It window-snap-up
+Snap window to top edge.
+.It window-snap-down
+Snap window to bottom edge.
+.It window-snap-right
+Snap window to right edge.
+.It window-snap-left
+Snap window to left edge.
+.It window-snap-up-right
+Snap window to top-right corner.
+.It window-snap-up-left
+Snap window to top-left corner.
+.It window-snap-down-right
+Snap window to bottom-right corner.
+.It window-snap-down-left
+Snap window to bottom-left corner.
 .It pointer-move-up
 Move pointer
 .Ar moveamount

@@ -24,6 +24,7 @@
 #include <err.h>
 #include <errno.h>
 #include <limits.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,13 +32,15 @@
 
 #include "calmwm.h"
 
+static struct geom screen_apply_gap(struct screen_ctx *, struct geom);
+
 void
 screen_init(int which)
 {
 	struct screen_ctx	*sc;
 	Window			*wins, w0, w1, active = None;
 	XSetWindowAttributes	 rootattr;
-	unsigned int		 nwins, i;
+	unsigned int		 nwins, w;
 
 	sc = xmalloc(sizeof(*sc));
 
@@ -47,6 +50,8 @@ screen_init(int which)
 
 	sc->which = which;
 	sc->rootwin = RootWindow(X_Dpy, sc->which);
+	sc->colormap = DefaultColormap(X_Dpy, sc->which);
+	sc->visual = DefaultVisual(X_Dpy, sc->which);
 	sc->cycling = 0;
 	sc->hideall = 0;
 
@@ -55,14 +60,11 @@ screen_init(int which)
 	xu_ewmh_net_supported(sc);
 	xu_ewmh_net_supported_wm_check(sc);
 
+	conf_group(sc);
 	screen_update_geometry(sc);
 
-	for (i = 0; i < Conf.ngroups; i++)
-		group_init(sc, i);
-
 	xu_ewmh_net_desktop_names(sc);
-	xu_ewmh_net_wm_desktop_viewport(sc);
-	xu_ewmh_net_wm_number_of_desktops(sc);
+	xu_ewmh_net_number_of_desktops(sc);
 	xu_ewmh_net_showing_desktop(sc);
 	xu_ewmh_net_virtual_roots(sc);
 	active = xu_ewmh_get_net_active_window(sc);
@@ -77,8 +79,8 @@ screen_init(int which)
 
 	/* Deal with existing clients. */
 	if (XQueryTree(X_Dpy, sc->rootwin, &w0, &w1, &wins, &nwins)) {
-		for (i = 0; i < nwins; i++)
-			(void)client_init(wins[i], sc, (active == wins[i]));
+		for (w = 0; w < nwins; w++)
+			(void)client_init(wins[w], sc, (active == wins[w]));
 
 		XFree(wins);
 	}
@@ -101,7 +103,7 @@ screen_find(Window win)
 		if (sc->rootwin == win)
 			return(sc);
 	}
-	warnx("%s: failure win 0x%lu\n", __func__, win);
+	warnx("%s: failure win 0x%lx", __func__, win);
 	return(NULL);
 }
 
@@ -143,12 +145,12 @@ struct geom
 screen_area(struct screen_ctx *sc, int x, int y, enum apply_gap apply_gap)
 {
 	struct region_ctx	*rc;
-	struct geom		 area = sc->work;
+	struct geom		 area = sc->view;
 
 	TAILQ_FOREACH(rc, &sc->regionq, entry) {
-		if ((x >= rc->area.x) && (x < (rc->area.x + rc->area.w)) &&
-		    (y >= rc->area.y) && (y < (rc->area.y + rc->area.h))) {
-			area = rc->area;
+		if ((x >= rc->view.x) && (x < (rc->view.x + rc->view.w)) &&
+		    (y >= rc->view.y) && (y < (rc->view.y + rc->view.h))) {
+			area = rc->view;
 			break;
 		}
 	}
@@ -190,10 +192,6 @@ screen_update_geometry(struct screen_ctx *sc)
 
 			rc = xmalloc(sizeof(*rc));
 			rc->num = i;
-			rc->area.x = ci->x;
-			rc->area.y = ci->y;
-			rc->area.w = ci->width;
-			rc->area.h = ci->height;
 			rc->view.x = ci->x;
 			rc->view.y = ci->y;
 			rc->view.w = ci->width;
@@ -216,10 +214,11 @@ screen_update_geometry(struct screen_ctx *sc)
 	}
 
 	xu_ewmh_net_desktop_geometry(sc);
+	xu_ewmh_net_desktop_viewport(sc);
 	xu_ewmh_net_workarea(sc);
 }
 
-struct geom
+static struct geom
 screen_apply_gap(struct screen_ctx *sc, struct geom geom)
 {
 	geom.x += sc->gap.left;
@@ -251,4 +250,45 @@ screen_assert_clients_within(struct screen_ctx *sc)
 			client_move(cc);
 		}
 	}
+}
+
+void
+screen_prop_win_create(struct screen_ctx *sc, Window win)
+{
+	sc->prop.win = XCreateSimpleWindow(X_Dpy, win, 0, 0, 1, 1, 0,
+	    sc->xftcolor[CWM_COLOR_MENU_BG].pixel,
+	    sc->xftcolor[CWM_COLOR_MENU_BG].pixel);
+	sc->prop.xftdraw = XftDrawCreate(X_Dpy, sc->prop.win,
+	    sc->visual, sc->colormap);
+
+	XMapWindow(X_Dpy, sc->prop.win);
+}
+
+void
+screen_prop_win_destroy(struct screen_ctx *sc)
+{
+	XftDrawDestroy(sc->prop.xftdraw);
+	XDestroyWindow(X_Dpy, sc->prop.win);
+}
+
+void
+screen_prop_win_draw(struct screen_ctx *sc, const char *fmt, ...)
+{
+	va_list			 ap;
+	char			*text;
+	XGlyphInfo		 extents;
+
+	va_start(ap, fmt);
+	xvasprintf(&text, fmt, ap);
+	va_end(ap);
+
+	XftTextExtentsUtf8(X_Dpy, sc->xftfont, (const FcChar8*)text,
+	    strlen(text), &extents);
+	XResizeWindow(X_Dpy, sc->prop.win, extents.xOff, sc->xftfont->height);
+	XClearWindow(X_Dpy, sc->prop.win);
+	XftDrawStringUtf8(sc->prop.xftdraw, &sc->xftcolor[CWM_COLOR_MENU_FONT],
+	    sc->xftfont, 0, sc->xftfont->ascent + 1,
+	    (const FcChar8*)text, strlen(text));
+
+	free(text);
 }

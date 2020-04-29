@@ -20,11 +20,11 @@
 
 #include <sys/types.h>
 #include "queue.h"
-#include <sys/stat.h>
 
 #include <err.h>
 #include <errno.h>
 #include <limits.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,10 +33,24 @@
 #include "calmwm.h"
 
 static const char	*conf_bind_getmask(const char *, unsigned int *);
-static void		 conf_cmd_remove(struct conf *, const char *);
 static void		 conf_unbind_key(struct conf *, struct bind_ctx *);
 static void		 conf_unbind_mouse(struct conf *, struct bind_ctx *);
 
+static const struct {
+	int		 num;
+	const char	*name;
+} group_binds[] = {
+	{ 0, "nogroup" },
+	{ 1, "one" },
+	{ 2, "two" },
+	{ 3, "three" },
+	{ 4, "four" },
+	{ 5, "five" },
+	{ 6, "six" },
+	{ 7, "seven" },
+	{ 8, "eight" },
+	{ 9, "nine" },
+};
 static int cursor_binds[] = {
 	XC_left_ptr,		/* CF_NORMAL */
 	XC_fleur,		/* CF_MOVE */
@@ -56,163 +70,134 @@ static const char *color_binds[] = {
 };
 static const struct {
 	const char	*tag;
-	void		 (*handler)(void *, union arg *, enum xev);
+	void		 (*handler)(void *, struct cargs *);
 	enum context	 context;
-	union arg	 argument;
+	int		 flag;
 } name_to_func[] = {
-	{ "window-menu-label", kbfunc_menu_client_label, CWM_CONTEXT_CC, {0} },
-	{ "window-lower", kbfunc_client_lower, CWM_CONTEXT_CC, {0} },
-	{ "window-raise", kbfunc_client_raise, CWM_CONTEXT_CC, {0} },
-	{ "window-hide", kbfunc_client_hide, CWM_CONTEXT_CC, {0} },
-	{ "window-delete", kbfunc_client_delete, CWM_CONTEXT_CC, {0} },
-	{ "window-htile", kbfunc_client_htile, CWM_CONTEXT_CC, {0} },
-	{ "window-vtile", kbfunc_client_vtile, CWM_CONTEXT_CC, {0} },
-	{ "window-stick", kbfunc_client_toggle_sticky, CWM_CONTEXT_CC, {0} },
-	{ "window-fullscreen", kbfunc_client_toggle_fullscreen, CWM_CONTEXT_CC, {0} },
-	{ "window-maximize", kbfunc_client_toggle_maximize, CWM_CONTEXT_CC, {0} },
-	{ "window-vmaximize", kbfunc_client_toggle_vmaximize, CWM_CONTEXT_CC, {0} },
-	{ "window-hmaximize", kbfunc_client_toggle_hmaximize, CWM_CONTEXT_CC, {0} },
-	{ "window-freeze", kbfunc_client_toggle_freeze, CWM_CONTEXT_CC, {0} },
-	{ "window-cycle", kbfunc_client_cycle, CWM_CONTEXT_SC,
-	    {.i = (CWM_CYCLE_FORWARD)} },
-	{ "window-rcycle", kbfunc_client_cycle, CWM_CONTEXT_SC,
-	    {.i = (CWM_CYCLE_REVERSE)} },
-	{ "window-cycle-ingroup", kbfunc_client_cycle, CWM_CONTEXT_SC,
-	    {.i = (CWM_CYCLE_FORWARD | CWM_CYCLE_INGROUP)} },
-	{ "window-rcycle-ingroup", kbfunc_client_cycle, CWM_CONTEXT_SC,
-	    {.i = (CWM_CYCLE_REVERSE | CWM_CYCLE_INGROUP)} },
-	{ "window-group", kbfunc_client_toggle_group, CWM_CONTEXT_CC, {0} },
-	{ "window-movetogroup-1", kbfunc_client_movetogroup, CWM_CONTEXT_CC, {.i = 1} },
-	{ "window-movetogroup-2", kbfunc_client_movetogroup, CWM_CONTEXT_CC, {.i = 2} },
-	{ "window-movetogroup-3", kbfunc_client_movetogroup, CWM_CONTEXT_CC, {.i = 3} },
-	{ "window-movetogroup-4", kbfunc_client_movetogroup, CWM_CONTEXT_CC, {.i = 4} },
-	{ "window-movetogroup-5", kbfunc_client_movetogroup, CWM_CONTEXT_CC, {.i = 5} },
-	{ "window-movetogroup-6", kbfunc_client_movetogroup, CWM_CONTEXT_CC, {.i = 6} },
-	{ "window-movetogroup-7", kbfunc_client_movetogroup, CWM_CONTEXT_CC, {.i = 7} },
-	{ "window-movetogroup-8", kbfunc_client_movetogroup, CWM_CONTEXT_CC, {.i = 8} },
-	{ "window-movetogroup-9", kbfunc_client_movetogroup, CWM_CONTEXT_CC, {.i = 9} },
+#define FUNC_CC(t, h, n) \
+	#t, kbfunc_ ## h, CWM_CONTEXT_CC, n
+#define FUNC_SC(t, h, n) \
+	#t, kbfunc_ ## h, CWM_CONTEXT_SC, n
 
-	{ "window-move", mousefunc_client_move, CWM_CONTEXT_CC, {0} },
-	{ "window-move-up", kbfunc_client_move, CWM_CONTEXT_CC,
-	    {.i = (CWM_UP)} },
-	{ "window-move-down", kbfunc_client_move, CWM_CONTEXT_CC,
-	    {.i = (CWM_DOWN)} },
-	{ "window-move-right", kbfunc_client_move, CWM_CONTEXT_CC,
-	    {.i = (CWM_RIGHT)} },
-	{ "window-move-left", kbfunc_client_move, CWM_CONTEXT_CC,
-	    {.i = (CWM_LEFT)} },
-	{ "window-move-up-big", kbfunc_client_move, CWM_CONTEXT_CC,
-	    {.i = (CWM_UP | CWM_BIGAMOUNT)} },
-	{ "window-move-down-big", kbfunc_client_move, CWM_CONTEXT_CC,
-	    {.i = (CWM_DOWN | CWM_BIGAMOUNT)} },
-	{ "window-move-right-big", kbfunc_client_move, CWM_CONTEXT_CC,
-	    {.i = (CWM_RIGHT | CWM_BIGAMOUNT)} },
-	{ "window-move-left-big", kbfunc_client_move, CWM_CONTEXT_CC,
-	    {.i = (CWM_LEFT | CWM_BIGAMOUNT)} },
-	{ "window-resize", mousefunc_client_resize, CWM_CONTEXT_CC, {0} },
-	{ "window-resize-keepratio", mousefunc_client_resize, CWM_CONTEXT_CC,
-	    {.i = (CWM_KEEPAR)} },
-	{ "window-grow", kbfunc_client_resize, CWM_CONTEXT_CC,
-	    {.i = (CWM_GROW)} },
-	{ "window-grow-big", kbfunc_client_resize, CWM_CONTEXT_CC,
-	    {.i = (CWM_GROW | CWM_BIGAMOUNT)} },
-	{ "window-shrink", kbfunc_client_resize, CWM_CONTEXT_CC,
-	    {.i = (CWM_SHRINK)} },
-	{ "window-shrink-big", kbfunc_client_resize, CWM_CONTEXT_CC,
-	    {.i = (CWM_SHRINK | CWM_BIGAMOUNT)} },
-	{ "window-resize-up", kbfunc_client_resize, CWM_CONTEXT_CC,
-	    {.i = (CWM_UP)} },
-	{ "window-resize-down", kbfunc_client_resize, CWM_CONTEXT_CC,
-	    {.i = (CWM_DOWN)} },
-	{ "window-resize-right", kbfunc_client_resize, CWM_CONTEXT_CC,
-	    {.i = (CWM_RIGHT)} },
-	{ "window-resize-left", kbfunc_client_resize, CWM_CONTEXT_CC,
-	    {.i = (CWM_LEFT)} },
-	{ "window-resize-up-big", kbfunc_client_resize, CWM_CONTEXT_CC,
-	    {.i = (CWM_UP | CWM_BIGAMOUNT)} },
-	{ "window-resize-down-big", kbfunc_client_resize, CWM_CONTEXT_CC,
-	    {.i = (CWM_DOWN | CWM_BIGAMOUNT)} },
-	{ "window-resize-right-big", kbfunc_client_resize, CWM_CONTEXT_CC,
-	    {.i = (CWM_RIGHT | CWM_BIGAMOUNT)} },
-	{ "window-resize-left-big", kbfunc_client_resize, CWM_CONTEXT_CC,
-	    {.i = (CWM_LEFT | CWM_BIGAMOUNT)} },
-	{ "group-cycle", kbfunc_group_cycle, CWM_CONTEXT_SC,
-	    {.i = (CWM_CYCLE_FORWARD)} },
-	{ "group-rcycle", kbfunc_group_cycle, CWM_CONTEXT_SC,
-	    {.i = (CWM_CYCLE_REVERSE)} },
-	{ "group-toggle-all", kbfunc_group_alltoggle, CWM_CONTEXT_SC, {0} },
-	{ "group-toggle-1", kbfunc_group_toggle, CWM_CONTEXT_SC, {.i = 1} },
-	{ "group-toggle-2", kbfunc_group_toggle, CWM_CONTEXT_SC, {.i = 2} },
-	{ "group-toggle-3", kbfunc_group_toggle, CWM_CONTEXT_SC, {.i = 3} },
-	{ "group-toggle-4", kbfunc_group_toggle, CWM_CONTEXT_SC, {.i = 4} },
-	{ "group-toggle-5", kbfunc_group_toggle, CWM_CONTEXT_SC, {.i = 5} },
-	{ "group-toggle-6", kbfunc_group_toggle, CWM_CONTEXT_SC, {.i = 6} },
-	{ "group-toggle-7", kbfunc_group_toggle, CWM_CONTEXT_SC, {.i = 7} },
-	{ "group-toggle-8", kbfunc_group_toggle, CWM_CONTEXT_SC, {.i = 8} },
-	{ "group-toggle-9", kbfunc_group_toggle, CWM_CONTEXT_SC, {.i = 9} },
-	{ "group-only-1", kbfunc_group_only, CWM_CONTEXT_SC, {.i = 1} },
-	{ "group-only-2", kbfunc_group_only, CWM_CONTEXT_SC, {.i = 2} },
-	{ "group-only-3", kbfunc_group_only, CWM_CONTEXT_SC, {.i = 3} },
-	{ "group-only-4", kbfunc_group_only, CWM_CONTEXT_SC, {.i = 4} },
-	{ "group-only-5", kbfunc_group_only, CWM_CONTEXT_SC, {.i = 5} },
-	{ "group-only-6", kbfunc_group_only, CWM_CONTEXT_SC, {.i = 6} },
-	{ "group-only-7", kbfunc_group_only, CWM_CONTEXT_SC, {.i = 7} },
-	{ "group-only-8", kbfunc_group_only, CWM_CONTEXT_SC, {.i = 8} },
-	{ "group-only-9", kbfunc_group_only, CWM_CONTEXT_SC, {.i = 9} },
+	{ FUNC_CC(window-lower, client_lower, 0) },
+	{ FUNC_CC(window-raise, client_raise, 0) },
+	{ FUNC_CC(window-hide, client_hide, 0) },
+	{ FUNC_CC(window-close, client_close, 0) },
+	{ FUNC_CC(window-delete, client_close, 0) },
+	{ FUNC_CC(window-htile, client_htile, 0) },
+	{ FUNC_CC(window-vtile, client_vtile, 0) },
+	{ FUNC_CC(window-stick, client_toggle_sticky, 0) },
+	{ FUNC_CC(window-fullscreen, client_toggle_fullscreen, 0) },
+	{ FUNC_CC(window-maximize, client_toggle_maximize, 0) },
+	{ FUNC_CC(window-vmaximize, client_toggle_vmaximize, 0) },
+	{ FUNC_CC(window-hmaximize, client_toggle_hmaximize, 0) },
+	{ FUNC_CC(window-freeze, client_toggle_freeze, 0) },
+	{ FUNC_CC(window-group, client_toggle_group, 0) },
+	{ FUNC_CC(window-movetogroup-1, client_movetogroup, 1) },
+	{ FUNC_CC(window-movetogroup-2, client_movetogroup, 2) },
+	{ FUNC_CC(window-movetogroup-3, client_movetogroup, 3) },
+	{ FUNC_CC(window-movetogroup-4, client_movetogroup, 4) },
+	{ FUNC_CC(window-movetogroup-5, client_movetogroup, 5) },
+	{ FUNC_CC(window-movetogroup-6, client_movetogroup, 6) },
+	{ FUNC_CC(window-movetogroup-7, client_movetogroup, 7) },
+	{ FUNC_CC(window-movetogroup-8, client_movetogroup, 8) },
+	{ FUNC_CC(window-movetogroup-9, client_movetogroup, 9) },
+	{ FUNC_CC(window-snap-up, client_snap, (CWM_UP)) },
+	{ FUNC_CC(window-snap-down, client_snap, (CWM_DOWN)) },
+	{ FUNC_CC(window-snap-right, client_snap, (CWM_RIGHT)) },
+	{ FUNC_CC(window-snap-left, client_snap, (CWM_LEFT)) },
+	{ FUNC_CC(window-snap-up-right, client_snap, (CWM_UP_RIGHT)) },
+	{ FUNC_CC(window-snap-up-left, client_snap, (CWM_UP_LEFT)) },
+	{ FUNC_CC(window-snap-down-right, client_snap, (CWM_DOWN_RIGHT)) },
+	{ FUNC_CC(window-snap-down-left, client_snap, (CWM_DOWN_LEFT)) },
+	{ FUNC_CC(window-move, client_move, 0) },
+	{ FUNC_CC(window-move-up, client_move, (CWM_UP)) },
+	{ FUNC_CC(window-move-down, client_move, (CWM_DOWN)) },
+	{ FUNC_CC(window-move-right, client_move, (CWM_RIGHT)) },
+	{ FUNC_CC(window-move-left, client_move, (CWM_LEFT)) },
+	{ FUNC_CC(window-move-up-big, client_move, (CWM_UP_BIG)) },
+	{ FUNC_CC(window-move-down-big, client_move, (CWM_DOWN_BIG)) },
+	{ FUNC_CC(window-move-right-big, client_move, (CWM_RIGHT_BIG)) },
+	{ FUNC_CC(window-move-left-big, client_move, (CWM_LEFT_BIG)) },
+	{ FUNC_CC(window-resize, client_resize, 0) },
+	{ FUNC_CC(window-resize-up, client_resize, (CWM_UP)) },
+	{ FUNC_CC(window-resize-down, client_resize, (CWM_DOWN)) },
+	{ FUNC_CC(window-resize-right, client_resize, (CWM_RIGHT)) },
+	{ FUNC_CC(window-resize-left, client_resize, (CWM_LEFT)) },
+	{ FUNC_CC(window-resize-up-big, client_resize, (CWM_UP_BIG)) },
+	{ FUNC_CC(window-resize-down-big, client_resize, (CWM_DOWN_BIG)) },
+	{ FUNC_CC(window-resize-right-big, client_resize, (CWM_RIGHT_BIG)) },
+	{ FUNC_CC(window-resize-left-big, client_resize, (CWM_LEFT_BIG)) },
+	{ FUNC_CC(window-menu-label, client_menu_label, 0) },
+	{ FUNC_CC(movetopleft, client_move_edge, (CWM_TOP_LEFT)) },
+	{ FUNC_CC(movebottomleft, client_move_edge, (CWM_BOTTOM_LEFT)) },
+	{ FUNC_CC(movetopright, client_move_edge, (CWM_TOP_RIGHT)) },
+	{ FUNC_CC(movebottomright, client_move_edge, (CWM_BOTTOM_RIGHT)) },
+	{ FUNC_CC(movecenter, client_move_edge, (CWM_CENTER)) },
+	{ FUNC_CC(movetopcenter, client_move_edge, (CWM_TOP_CENTER)) },
+	{ FUNC_CC(movebottomcenter, client_move_edge, (CWM_BOTTOM_CENTER)) },
+	{ FUNC_CC(moverightcenter, client_move_edge, (CWM_RIGHT_CENTER)) },
+	{ FUNC_CC(moveleftcenter, client_move_edge, (CWM_LEFT_CENTER)) },
 
-	{ "pointer-move-up", kbfunc_ptrmove, CWM_CONTEXT_SC,
-	    {.i = (CWM_UP)} },
-	{ "pointer-move-down", kbfunc_ptrmove, CWM_CONTEXT_SC,
-	    {.i = (CWM_DOWN)} },
-	{ "pointer-move-left", kbfunc_ptrmove, CWM_CONTEXT_SC,
-	    {.i = (CWM_LEFT)} },
-	{ "pointer-move-right", kbfunc_ptrmove, CWM_CONTEXT_SC,
-	    {.i = (CWM_RIGHT)} },
-	{ "pointer-move-up-big", kbfunc_ptrmove, CWM_CONTEXT_SC,
-	    {.i = (CWM_UP | CWM_BIGAMOUNT)} },
-	{ "pointer-move-down-big", kbfunc_ptrmove, CWM_CONTEXT_SC,
-	    {.i = (CWM_DOWN | CWM_BIGAMOUNT)} },
-	{ "pointer-move-left-big", kbfunc_ptrmove, CWM_CONTEXT_SC,
-	    {.i = (CWM_LEFT | CWM_BIGAMOUNT)} },
-	{ "pointer-move-right-big", kbfunc_ptrmove, CWM_CONTEXT_SC,
-	    {.i = (CWM_RIGHT | CWM_BIGAMOUNT)} },
+	{ FUNC_SC(window-cycle, client_cycle, (CWM_CYCLE_FORWARD)) },
+	{ FUNC_SC(window-rcycle, client_cycle, (CWM_CYCLE_REVERSE)) },
+	{ FUNC_SC(window-cycle-ingroup, client_cycle,
+		(CWM_CYCLE_FORWARD | CWM_CYCLE_INGROUP)) },
+	{ FUNC_SC(window-rcycle-ingroup, client_cycle,
+		(CWM_CYCLE_REVERSE | CWM_CYCLE_INGROUP)) },
 
-	{ "menu-cmd", kbfunc_menu_cmd, CWM_CONTEXT_SC, {0} },
-	{ "menu-group", kbfunc_menu_group, CWM_CONTEXT_SC, {0} },
-	{ "menu-ssh", kbfunc_menu_ssh, CWM_CONTEXT_SC, {0} },
-	{ "menu-window", kbfunc_menu_client, CWM_CONTEXT_SC,
-	    {.i = CWM_MENU_WINDOW_ALL} },
-	{ "menu-window-hidden", kbfunc_menu_client, CWM_CONTEXT_SC,
-	    {.i = CWM_MENU_WINDOW_HIDDEN} },
-	{ "menu-exec", kbfunc_menu_exec, CWM_CONTEXT_SC,
-	    {.i = CWM_MENU_EXEC_EXEC} },
-	{ "menu-exec-wm", kbfunc_menu_exec, CWM_CONTEXT_SC,
-	    {.i = CWM_MENU_EXEC_WM} },
+	{ FUNC_SC(group-cycle, group_cycle, (CWM_CYCLE_FORWARD)) },
+	{ FUNC_SC(group-rcycle, group_cycle, (CWM_CYCLE_REVERSE)) },
+	{ FUNC_SC(group-toggle-all, group_toggle_all, 0) },
+	{ FUNC_SC(group-toggle-1, group_toggle, 1) },
+	{ FUNC_SC(group-toggle-2, group_toggle, 2) },
+	{ FUNC_SC(group-toggle-3, group_toggle, 3) },
+	{ FUNC_SC(group-toggle-4, group_toggle, 4) },
+	{ FUNC_SC(group-toggle-5, group_toggle, 5) },
+	{ FUNC_SC(group-toggle-6, group_toggle, 6) },
+	{ FUNC_SC(group-toggle-7, group_toggle, 7) },
+	{ FUNC_SC(group-toggle-8, group_toggle, 8) },
+	{ FUNC_SC(group-toggle-9, group_toggle, 9) },
+	{ FUNC_SC(group-only-1, group_only, 1) },
+	{ FUNC_SC(group-only-2, group_only, 2) },
+	{ FUNC_SC(group-only-3, group_only, 3) },
+	{ FUNC_SC(group-only-4, group_only, 4) },
+	{ FUNC_SC(group-only-5, group_only, 5) },
+	{ FUNC_SC(group-only-6, group_only, 6) },
+	{ FUNC_SC(group-only-7, group_only, 7) },
+	{ FUNC_SC(group-only-8, group_only, 8) },
+	{ FUNC_SC(group-only-9, group_only, 9) },
+	{ FUNC_SC(group-close-1, group_close, 1) },
+	{ FUNC_SC(group-close-2, group_close, 2) },
+	{ FUNC_SC(group-close-3, group_close, 3) },
+	{ FUNC_SC(group-close-4, group_close, 4) },
+	{ FUNC_SC(group-close-5, group_close, 5) },
+	{ FUNC_SC(group-close-6, group_close, 6) },
+	{ FUNC_SC(group-close-7, group_close, 7) },
+	{ FUNC_SC(group-close-8, group_close, 8) },
+	{ FUNC_SC(group-close-9, group_close, 9) },
 
-	{ "terminal", kbfunc_exec_term, CWM_CONTEXT_SC, {0} },
-	{ "lock", kbfunc_exec_lock, CWM_CONTEXT_SC, {0} },
-	{ "restart", kbfunc_cwm_status, CWM_CONTEXT_SC, {.i = CWM_EXEC_WM} },
-	{ "quit", kbfunc_cwm_status, CWM_CONTEXT_SC, {.i = CWM_QUIT} },
+	{ FUNC_SC(pointer-move-up, ptrmove, (CWM_UP)) },
+	{ FUNC_SC(pointer-move-down, ptrmove, (CWM_DOWN)) },
+	{ FUNC_SC(pointer-move-left, ptrmove, (CWM_LEFT)) },
+	{ FUNC_SC(pointer-move-right, ptrmove, (CWM_RIGHT)) },
+	{ FUNC_SC(pointer-move-up-big, ptrmove, (CWM_UP_BIG)) },
+	{ FUNC_SC(pointer-move-down-big, ptrmove, (CWM_DOWN_BIG)) },
+	{ FUNC_SC(pointer-move-left-big, ptrmove, (CWM_LEFT_BIG)) },
+	{ FUNC_SC(pointer-move-right-big, ptrmove, (CWM_RIGHT_BIG)) },
 
-        { "movetopleft", kbfunc_client_move_edge, CWM_CONTEXT_CC,
-            {.i = (CWM_TOP_LEFT)} },
-        { "movebottomleft", kbfunc_client_move_edge, CWM_CONTEXT_CC,
-            {.i = (CWM_BOTTOM_LEFT)} },
-        { "movetopright", kbfunc_client_move_edge, CWM_CONTEXT_CC,
-            {.i = (CWM_TOP_RIGHT)} },
-        { "movebottomright", kbfunc_client_move_edge, CWM_CONTEXT_CC,
-            {.i = (CWM_BOTTOM_RIGHT)} },
-        { "movecenter", kbfunc_client_move_edge, CWM_CONTEXT_CC,
-            {.i = (CWM_CENTER)} },
-        { "movetopcenter", kbfunc_client_move_edge, CWM_CONTEXT_CC,
-            {.i = (CWM_TOP_CENTER)} },
-        { "movebottomcenter", kbfunc_client_move_edge, CWM_CONTEXT_CC,
-            {.i = (CWM_BOTTOM_CENTER)} },
-        { "moverightcenter", kbfunc_client_move_edge, CWM_CONTEXT_CC,
-            {.i = (CWM_RIGHT_CENTER)} },
-        { "moveleftcenter", kbfunc_client_move_edge, CWM_CONTEXT_CC,
-            {.i = (CWM_LEFT_CENTER)} },
+	{ FUNC_SC(menu-cmd, menu_cmd, 0) },
+	{ FUNC_SC(menu-group, menu_group, 0) },
+	{ FUNC_SC(menu-ssh, menu_ssh, 0) },
+	{ FUNC_SC(menu-window, menu_client, CWM_MENU_WINDOW_ALL) },
+	{ FUNC_SC(menu-window-hidden, menu_client, CWM_MENU_WINDOW_HIDDEN) },
+	{ FUNC_SC(menu-exec, menu_exec, 0) },
+	{ FUNC_SC(menu-exec-wm, menu_wm, 0) },
 
+	{ FUNC_SC(terminal, exec_term, 0) },
+	{ FUNC_SC(lock, exec_lock, 0) },
+	{ FUNC_SC(restart, cwm_status, CWM_EXEC_WM) },
+	{ FUNC_SC(quit, cwm_status, CWM_QUIT) },
 };
 static unsigned int ignore_mods[] = {
 	0, LockMask, Mod2Mask, Mod2Mask | LockMask
@@ -221,10 +206,11 @@ static const struct {
 	const char	ch;
 	int		mask;
 } bind_mods[] = {
+	{ 'S',	ShiftMask },
 	{ 'C',	ControlMask },
 	{ 'M',	Mod1Mask },
 	{ '4',	Mod4Mask },
-	{ 'S',	ShiftMask },
+	{ '5',	Mod5Mask },
 };
 static const struct {
 	const char	*key;
@@ -243,7 +229,7 @@ static const struct {
 	{ "M-Tab",	"window-cycle" },
 	{ "MS-Tab",	"window-rcycle" },
 	{ "CM-n",	"window-menu-label" },
-	{ "CM-x",	"window-delete" },
+	{ "CM-x",	"window-close" },
 	{ "CM-a",	"group-toggle-all" },
 	{ "CM-0",	"group-toggle-all" },
 	{ "CM-1",	"group-toggle-1" },
@@ -311,20 +297,23 @@ mouse_binds[] = {
 void
 conf_init(struct conf *c)
 {
+	const char	*home;
+	struct passwd	*pw;
 	unsigned int	i;
 
 	c->stickygroups = 0;
 	c->bwidth = 1;
 	c->mamount = 1;
 	c->snapdist = 0;
-	c->ngroups = 10;
+	c->ngroups = 0;
 	c->nameqlen = 5;
 
 	TAILQ_INIT(&c->ignoreq);
-	TAILQ_INIT(&c->cmdq);
-	TAILQ_INIT(&c->keybindq);
 	TAILQ_INIT(&c->autogroupq);
+	TAILQ_INIT(&c->keybindq);
 	TAILQ_INIT(&c->mousebindq);
+	TAILQ_INIT(&c->cmdq);
+	TAILQ_INIT(&c->wmq);
 
 	for (i = 0; i < nitems(key_binds); i++)
 		conf_bind_key(c, key_binds[i].key, key_binds[i].func);
@@ -337,12 +326,21 @@ conf_init(struct conf *c)
 
 	conf_cmd_add(c, "lock", "xlock");
 	conf_cmd_add(c, "term", "xterm");
-
-	(void)snprintf(c->known_hosts, sizeof(c->known_hosts), "%s/%s",
-	    homedir, ".ssh/known_hosts");
+	conf_wm_add(c, "cwm", "cwm");
 
 	c->font = xstrdup("sans-serif:pixelsize=14:bold");
 	c->wmname = xstrdup("CWM");
+
+	home = getenv("HOME");
+	if ((home == NULL) || (*home == '\0')) {
+		pw = getpwuid(getuid());
+		if (pw != NULL && pw->pw_dir != NULL && *pw->pw_dir != '\0')
+			home = pw->pw_dir;
+		else
+			home = "/";
+	}
+	xasprintf(&c->conf_file, "%s/%s", home, ".cwmrc");
+	xasprintf(&c->known_hosts, "%s/%s", home, ".ssh/known_hosts");
 }
 
 void
@@ -351,13 +349,20 @@ conf_clear(struct conf *c)
 	struct autogroup	*ag;
 	struct bind_ctx		*kb, *mb;
 	struct winname		*wn;
-	struct cmd_ctx		*cmd;
+	struct cmd_ctx		*cmd, *wm;
 	int			 i;
 
 	while ((cmd = TAILQ_FIRST(&c->cmdq)) != NULL) {
 		TAILQ_REMOVE(&c->cmdq, cmd, entry);
 		free(cmd->name);
+		free(cmd->path);
 		free(cmd);
+	}
+	while ((wm = TAILQ_FIRST(&c->wmq)) != NULL) {
+		TAILQ_REMOVE(&c->wmq, wm, entry);
+		free(wm->name);
+		free(wm->path);
+		free(wm);
 	}
 	while ((kb = TAILQ_FIRST(&c->keybindq)) != NULL) {
 		TAILQ_REMOVE(&c->keybindq, kb, entry);
@@ -381,40 +386,50 @@ conf_clear(struct conf *c)
 	for (i = 0; i < CWM_COLOR_NITEMS; i++)
 		free(c->color[i]);
 
+	free(c->conf_file);
+	free(c->known_hosts);
 	free(c->font);
 	free(c->wmname);
 }
 
-int
+void
 conf_cmd_add(struct conf *c, const char *name, const char *path)
 {
-	struct cmd_ctx	*cmd;
+	struct cmd_ctx	*cmd, *cmdtmp = NULL, *cmdnxt;
 
 	cmd = xmalloc(sizeof(*cmd));
 	cmd->name = xstrdup(name);
-	if (strlcpy(cmd->path, path, sizeof(cmd->path)) >= sizeof(cmd->path)) {
-		free(cmd->name);
-		free(cmd);
-		return(0);
-	}
-	conf_cmd_remove(c, name);
+	cmd->path = xstrdup(path);
 
-	TAILQ_INSERT_TAIL(&c->cmdq, cmd, entry);
-	return(1);
-}
-
-static void
-conf_cmd_remove(struct conf *c, const char *name)
-{
-	struct cmd_ctx	*cmd = NULL, *cmdnxt;
-
-	TAILQ_FOREACH_SAFE(cmd, &c->cmdq, entry, cmdnxt) {
-		if (strcmp(cmd->name, name) == 0) {
-			TAILQ_REMOVE(&c->cmdq, cmd, entry);
-			free(cmd->name);
-			free(cmd);
+	TAILQ_FOREACH_SAFE(cmdtmp, &c->cmdq, entry, cmdnxt) {
+		if (strcmp(cmdtmp->name, name) == 0) {
+			TAILQ_REMOVE(&c->cmdq, cmdtmp, entry);
+			free(cmdtmp->name);
+			free(cmdtmp->path);
+			free(cmdtmp);
 		}
 	}
+	TAILQ_INSERT_TAIL(&c->cmdq, cmd, entry);
+}
+
+void
+conf_wm_add(struct conf *c, const char *name, const char *path)
+{
+	struct cmd_ctx	*wm, *wmtmp = NULL, *wmnxt;
+
+	wm = xmalloc(sizeof(*wm));
+	wm->name = xstrdup(name);
+	wm->path = xstrdup(path);
+
+	TAILQ_FOREACH_SAFE(wmtmp, &c->cmdq, entry, wmnxt) {
+		if (strcmp(wmtmp->name, name) == 0) {
+			TAILQ_REMOVE(&c->wmq, wmtmp, entry);
+			free(wmtmp->name);
+			free(wmtmp->path);
+			free(wmtmp);
+		}
+	}
+	TAILQ_INSERT_TAIL(&c->wmq, wm, entry);
 }
 
 void
@@ -467,16 +482,13 @@ void
 conf_client(struct client_ctx *cc)
 {
 	struct winname	*wn;
-	int		 ignore = 0;
 
 	TAILQ_FOREACH(wn, &Conf.ignoreq, entry) {
 		if (strncasecmp(wn->name, cc->name, strlen(wn->name)) == 0) {
-			ignore = 1;
+			cc->flags |= CLIENT_IGNORE;
 			break;
 		}
 	}
-	cc->bwidth = (ignore) ? 0 : Conf.bwidth;
-	cc->flags |= (ignore) ? CLIENT_IGNORE : 0;
 }
 
 void
@@ -484,8 +496,6 @@ conf_screen(struct screen_ctx *sc)
 {
 	unsigned int	 i;
 	XftColor	 xc;
-	Colormap	 colormap = DefaultColormap(X_Dpy, sc->which);
-	Visual		*visual = DefaultVisual(X_Dpy, sc->which);
 
 	sc->gap = Conf.gap;
 	sc->snapdist = Conf.snapdist;
@@ -502,32 +512,31 @@ conf_screen(struct screen_ctx *sc)
 			xu_xorcolor(sc->xftcolor[CWM_COLOR_MENU_BG],
 			    sc->xftcolor[CWM_COLOR_MENU_FG], &xc);
 			xu_xorcolor(sc->xftcolor[CWM_COLOR_MENU_FONT], xc, &xc);
-			if (!XftColorAllocValue(X_Dpy, visual, colormap,
+			if (!XftColorAllocValue(X_Dpy, sc->visual, sc->colormap,
 			    &xc.color, &sc->xftcolor[CWM_COLOR_MENU_FONT_SEL]))
 				warnx("XftColorAllocValue: %s", Conf.color[i]);
 			break;
 		}
-		if (XftColorAllocName(X_Dpy, visual, colormap,
-		    Conf.color[i], &xc)) {
-			sc->xftcolor[i] = xc;
-			XftColorFree(X_Dpy, visual, colormap, &xc);
-		} else {
+		if (!XftColorAllocName(X_Dpy, sc->visual, sc->colormap,
+		    Conf.color[i], &sc->xftcolor[i])) {
 			warnx("XftColorAllocName: %s", Conf.color[i]);
-			XftColorAllocName(X_Dpy, visual, colormap,
+			XftColorAllocName(X_Dpy, sc->visual, sc->colormap,
 			    color_binds[i], &sc->xftcolor[i]);
 		}
 	}
 
-	sc->menu.win = XCreateSimpleWindow(X_Dpy, sc->rootwin, 0, 0, 1, 1,
-	    Conf.bwidth,
-	    sc->xftcolor[CWM_COLOR_MENU_FG].pixel,
-	    sc->xftcolor[CWM_COLOR_MENU_BG].pixel);
-
-	sc->menu.xftdraw = XftDrawCreate(X_Dpy, sc->menu.win, visual, colormap);
-	if (sc->menu.xftdraw == NULL)
-		errx(1, "%s: XftDrawCreate", __func__);
-
 	conf_grab_kbd(sc->rootwin);
+}
+
+void
+conf_group(struct screen_ctx *sc)
+{
+	unsigned int	 i;
+
+	for (i = 0; i < nitems(group_binds); i++) {
+		group_init(sc, group_binds[i].num, group_binds[i].name);
+		Conf.ngroups++;
+	}
 }
 
 static const char *
@@ -552,12 +561,13 @@ int
 conf_bind_key(struct conf *c, const char *bind, const char *cmd)
 {
 	struct bind_ctx	*kb;
+	struct cargs	*cargs;
 	const char	*key;
 	unsigned int	 i;
 
 	if ((strcmp(bind, "all") == 0) && (cmd == NULL)) {
 		conf_unbind_key(c, NULL);
-		goto out;
+		return(1);
 	}
 	kb = xmalloc(sizeof(*kb));
 	key = conf_bind_getmask(bind, &kb->modmask);
@@ -570,22 +580,24 @@ conf_bind_key(struct conf *c, const char *bind, const char *cmd)
 	conf_unbind_key(c, kb);
 	if (cmd == NULL) {
 		free(kb);
-		goto out;
+		return(1);
 	}
+	cargs = xcalloc(1, sizeof(*cargs));
 	for (i = 0; i < nitems(name_to_func); i++) {
 		if (strcmp(name_to_func[i].tag, cmd) != 0)
 			continue;
 		kb->callback = name_to_func[i].handler;
 		kb->context = name_to_func[i].context;
-		kb->argument = name_to_func[i].argument;
-		TAILQ_INSERT_TAIL(&c->keybindq, kb, entry);
+		cargs->flag = name_to_func[i].flag;
 		goto out;
 	}
 	kb->callback = kbfunc_exec_cmd;
 	kb->context = CWM_CONTEXT_NONE;
-	kb->argument.c = xstrdup(cmd);
-	TAILQ_INSERT_TAIL(&c->keybindq, kb, entry);
+	cargs->flag = 0;
+	cargs->cmd = xstrdup(cmd);
 out:
+	kb->cargs = cargs;
+	TAILQ_INSERT_TAIL(&c->keybindq, kb, entry);
 	return(1);
 }
 
@@ -599,8 +611,8 @@ conf_unbind_key(struct conf *c, struct bind_ctx *unbind)
 		    ((key->modmask == unbind->modmask) &&
 		     (key->press.keysym == unbind->press.keysym))) {
 			TAILQ_REMOVE(&c->keybindq, key, entry);
-			if (key->context == CWM_CONTEXT_NONE)
-				free(key->argument.c);
+			free(key->cargs->cmd);
+			free(key->cargs);
 			free(key);
 		}
 	}
@@ -610,12 +622,13 @@ int
 conf_bind_mouse(struct conf *c, const char *bind, const char *cmd)
 {
 	struct bind_ctx	*mb;
+	struct cargs	*cargs;
 	const char	*button, *errstr;
 	unsigned int	 i;
 
 	if ((strcmp(bind, "all") == 0) && (cmd == NULL)) {
 		conf_unbind_mouse(c, NULL);
-		goto out;
+		return(1);
 	}
 	mb = xmalloc(sizeof(*mb));
 	button = conf_bind_getmask(bind, &mb->modmask);
@@ -628,22 +641,24 @@ conf_bind_mouse(struct conf *c, const char *bind, const char *cmd)
 	conf_unbind_mouse(c, mb);
 	if (cmd == NULL) {
 		free(mb);
-		goto out;
+		return(1);
 	}
+	cargs = xcalloc(1, sizeof(*cargs));
 	for (i = 0; i < nitems(name_to_func); i++) {
 		if (strcmp(name_to_func[i].tag, cmd) != 0)
 			continue;
 		mb->callback = name_to_func[i].handler;
 		mb->context = name_to_func[i].context;
-		mb->argument = name_to_func[i].argument;
-		TAILQ_INSERT_TAIL(&c->mousebindq, mb, entry);
+		cargs->flag = name_to_func[i].flag;
 		goto out;
 	}
 	mb->callback = kbfunc_exec_cmd;
 	mb->context = CWM_CONTEXT_NONE;
-	mb->argument.c = xstrdup(cmd);
-	TAILQ_INSERT_TAIL(&c->mousebindq, mb, entry);
+	cargs->flag = 0;
+	cargs->cmd = xstrdup(cmd);
 out:
+	mb->cargs = cargs;
+	TAILQ_INSERT_TAIL(&c->mousebindq, mb, entry);
 	return(1);
 }
 
@@ -657,8 +672,8 @@ conf_unbind_mouse(struct conf *c, struct bind_ctx *unbind)
 		    ((mb->modmask == unbind->modmask) &&
 		     (mb->press.button == unbind->press.button))) {
 			TAILQ_REMOVE(&c->mousebindq, mb, entry);
-			if (mb->context == CWM_CONTEXT_NONE)
-				free(mb->argument.c);
+			free(mb->cargs->cmd);
+			free(mb->cargs);
 			free(mb);
 		}
 	}
@@ -738,9 +753,10 @@ static char *ewmhints[] = {
 	"_NET_WM_STATE_HIDDEN",
 	"_NET_WM_STATE_FULLSCREEN",
 	"_NET_WM_STATE_DEMANDS_ATTENTION",
+	"_NET_WM_STATE_SKIP_PAGER",
+	"_NET_WM_STATE_SKIP_TASKBAR",
 	"_CWM_WM_STATE_FREEZE",
 };
-
 void
 conf_atoms(void)
 {

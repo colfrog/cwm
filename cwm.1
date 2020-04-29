@@ -23,6 +23,7 @@
 .Sh SYNOPSIS
 .\" For a program:  program [-abc] file ...
 .Nm cwm
+.Op Fl nv
 .Op Fl c Ar file
 .Op Fl d Ar display
 .Sh DESCRIPTION
@@ -49,6 +50,14 @@ however,
 will continue to process the rest of the configuration file.
 .It Fl d Ar display
 Specify the display to use.
+.It Fl n
+Configtest mode.
+Only check the configuration file for validity.
+.It Fl v
+Verbose mode.
+Multiple
+.Fl v
+options increase the verbosity.
 .El
 .Pp
 .Nm
@@ -85,9 +94,9 @@ Hide current window.
 Lower current window.
 .It Ic M-Up
 Raise current window.
-.It Ic M-/
+.It Ic M-slash
 Search for windows.
-.It Ic C-/
+.It Ic C-slash
 Search for applications.
 .It Ic CM-n
 Label current window.
@@ -96,7 +105,7 @@ Cycle through currently visible windows.
 .It Ic MS-Tab
 Reverse cycle through currently visible windows.
 .It Ic CM-x
-Delete current window.
+Close current window.
 .It Ic CM-[n]
 Toggle visibility of group n, where n is 1-9.
 .It Ic CM-a
@@ -115,9 +124,9 @@ Toggle stickiness of current window.
 Toggle full-screen mode of current window.
 .It Ic CM-m
 Toggle maximization of current window.
-.It Ic CM-=
+.It Ic CM-equal
 Toggle vertical maximization of current window.
-.It Ic CMS-=
+.It Ic CMS-equal
 Toggle horizontal maximization of current window.
 .It Ic M-[hjkl]
 Move window by a small amount.
@@ -151,11 +160,11 @@ Move window to the top center of screen.
 Move window to the right center of screen.
 .It Ic CS-g
 Move window to the center of screen.
-.It Ic M-?
+.It Ic M-question
 Spawn
 .Dq exec program
 dialog.
-.It Ic M-.
+.It Ic M-period
 Spawn
 .Dq ssh to
 dialog.
@@ -167,7 +176,7 @@ will be executed via the configured terminal emulator.
 .It Ic CM-w
 Spawn
 .Dq exec WindowManager
-dialog, allowing a switch to another window manager.
+menu, allowing a switch to another window manager.
 .It Ic CMS-r
 Restart.
 .It Ic CMS-q
@@ -210,6 +219,14 @@ List all available items.
 .It Ic [Esc]
 Cancel.
 .El
+.Pp
+.Nm
+rereads its configuration file when it receives a hangup signal,
+.Dv SIGHUP ,
+by executing itself with the name and arguments with which it was started.
+This is equivalent to the
+.Ar restart
+function.
 .Sh SEARCH
 .Nm
 features the ability to search for windows by their current title,
@@ -228,6 +245,11 @@ Window is currently focused.
 .It &
 Window is hidden.
 .El
+.Sh APPLICATIONS
+.Nm
+manages a list of applications defined with the
+.Cm command
+configuration option.
 .Sh GROUPS
 .Nm
 has the ability to group windows together, and use the groups to
@@ -251,8 +273,7 @@ Selecting an item will warp to that window, unhiding it if necessary.
 Show list of currently defined groups.
 Selecting an item will hide/unhide that group.
 .It Ic M3
-Show list of applications as defined in
-.Pa ~/.config/cwm/cwmrc .
+Show list of applications as defined in the configuration file.
 Selecting an item will spawn that application.
 .El
 .Sh ENVIRONMENT

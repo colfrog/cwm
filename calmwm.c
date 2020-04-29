@@ -27,7 +27,7 @@
 #include <getopt.h>
 #include <limits.h>
 #include <locale.h>
-#include <pwd.h>
+#include <poll.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,35 +42,44 @@ Atom			 cwmh[CWMH_NITEMS];
 Atom			 ewmh[EWMH_NITEMS];
 struct screen_q		 Screenq = TAILQ_HEAD_INITIALIZER(Screenq);
 struct conf		 Conf;
-const char		*homedir;
 volatile sig_atomic_t	 cwm_status;
 
 static void	sighdlr(int);
 static int	x_errorhandler(Display *, XErrorEvent *);
-static void	x_init(const char *);
+static int	x_init(const char *);
 static void	x_teardown(void);
 static int	x_wmerrorhandler(Display *, XErrorEvent *);
 
 int
 main(int argc, char **argv)
 {
-	const char	*conf_file = NULL;
-	char		*conf_path, *display_name = NULL;
-	int		 ch;
-	struct passwd	*pw;
+	char		*display_name = NULL;
+	char		*fallback;
+	int		 ch, xfd, nflag = 0;
+	struct pollfd	 pfd[1];
 
 	if (!setlocale(LC_CTYPE, "") || !XSupportsLocale())
 		warnx("no locale support");
 	mbtowc(NULL, NULL, MB_CUR_MAX);
 
+	conf_init(&Conf);
+
+	fallback = u_argv(argv);
 	Conf.wm_argv = u_argv(argv);
-	while ((ch = getopt(argc, argv, "c:d:")) != -1) {
+	while ((ch = getopt(argc, argv, "c:d:nv")) != -1) {
 		switch (ch) {
 		case 'c':
-			conf_file = optarg;
+			free(Conf.conf_file);
+			Conf.conf_file = xstrdup(optarg);
 			break;
 		case 'd':
 			display_name = optarg;
+			break;
+		case 'n':
+			nflag = 1;
+			break;
+		case 'v':
+			Conf.debug++;
 			break;
 		default:
 			usage();
@@ -81,34 +90,18 @@ main(int argc, char **argv)
 
 	if (signal(SIGCHLD, sighdlr) == SIG_ERR)
 		err(1, "signal");
+	if (signal(SIGHUP, sighdlr) == SIG_ERR)
+		err(1, "signal");
 
-	if ((homedir = getenv("HOME")) == NULL || *homedir == '\0') {
-		pw = getpwuid(getuid());
-		if (pw != NULL && pw->pw_dir != NULL && *pw->pw_dir != '\0')
-			homedir = pw->pw_dir;
-		else
-			homedir = "/";
+	if (parse_config(Conf.conf_file, &Conf) == -1) {
+		warnx("error parsing config file");
+		if (nflag)
+			return 1;
 	}
+	if (nflag)
+		return 0;
 
-	if (conf_file == NULL)
-		xasprintf(&conf_path, "%s/%s", homedir, CONFFILE);
-	else
-		conf_path = xstrdup(conf_file);
-
-	if (access(conf_path, R_OK) != 0) {
-		if (conf_file != NULL)
-			warn("%s", conf_file);
-		free(conf_path);
-		conf_path = NULL;
-	}
-
-	conf_init(&Conf);
-
-	if (conf_path && (parse_config(conf_path, &Conf) == -1))
-		warnx("config file %s has errors", conf_path);
-	free(conf_path);
-
-	x_init(display_name);
+	xfd = x_init(display_name);
 	cwm_status = CWM_RUNNING;
 
 #if defined AUTOEXEC// && defined SHBINDIR && defined AUTOEXECDIR
@@ -124,16 +117,27 @@ main(int argc, char **argv)
 		err(1, "pledge");
 #endif
 
-	while (cwm_status == CWM_RUNNING)
+	memset(&pfd, 0, sizeof(pfd));
+	pfd[0].fd = xfd;
+	pfd[0].events = POLLIN;
+	while (cwm_status == CWM_RUNNING) {
 		xev_process();
+		if (poll(pfd, 1, -1) == -1) {
+			if (errno != EINTR)
+				warn("poll");
+		}
+	}
 	x_teardown();
-	if (cwm_status == CWM_EXEC_WM)
+	if (cwm_status == CWM_EXEC_WM) {
 		u_exec(Conf.wm_argv);
+		warnx("'%s' failed to start, starting fallback", Conf.wm_argv);
+		u_exec(fallback);
+	}
 
 	return(0);
 }
 
-static void
+static int
 x_init(const char *dpyname)
 {
 	int	i;
@@ -153,6 +157,8 @@ x_init(const char *dpyname)
 
 	for (i = 0; i < ScreenCount(X_Dpy); i++)
 		screen_init(i);
+
+	return ConnectionNumber(X_Dpy);
 }
 
 static void
@@ -169,8 +175,6 @@ x_teardown(void)
 			    DefaultColormap(X_Dpy, sc->which),
 			    &sc->xftcolor[i]);
 		XftFontClose(X_Dpy, sc->xftfont);
-		XftDrawDestroy(sc->menu.xftdraw);
-		XDestroyWindow(X_Dpy, sc->menu.win);
 		XUngrabKey(X_Dpy, AnyKey, AnyModifier, sc->rootwin);
 	}
 	XUngrabPointer(X_Dpy, CurrentTime);
@@ -186,7 +190,6 @@ static int
 x_wmerrorhandler(Display *dpy, XErrorEvent *e)
 {
 	errx(1, "root window unavailable - perhaps another wm is running?");
-
 	return(0);
 }
 
@@ -219,6 +222,9 @@ sighdlr(int sig)
 		    (pid < 0 && errno == EINTR))
 			;
 		break;
+	case SIGHUP:
+		cwm_status = CWM_EXEC_WM;
+		break;
 	}
 
 	errno = save_errno;
@@ -229,7 +235,7 @@ usage(void)
 {
 	extern char	*__progname;
 
-	(void)fprintf(stderr, "usage: %s [-c file] [-d display]\n",
+	(void)fprintf(stderr, "usage: %s [-nv] [-c file] [-d display]\n",
 	    __progname);
 	exit(1);
 }
