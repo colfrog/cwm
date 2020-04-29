@@ -20,4 +20,4 @@
 
 //set this to specify the multiplier that the grow/shrink functions should resize with.
 //This value applies to both sides.
-#define CWM_FACTOR_KEEPAR	10
+#define CWM_FACTOR_KEEPAR	5
